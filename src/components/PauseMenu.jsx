@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function PauseMenu({ onResume, onRestart, onQuit, muted, onMute, auto, onAuto, isTouch }) {
+export default function PauseMenu({ onResume, onRestart, onQuit, muted, onMute, auto, onAuto, isTouch, is3D, onCam, camLabel }) {
   return (
     <div className="modal pause">
       <div className="modal-card">
@@ -13,8 +13,9 @@ export default function PauseMenu({ onResume, onRestart, onQuit, muted, onMute, 
         <div className="toggles">
           <button onClick={onMute}>サウンド：{muted ? 'OFF' : 'ON'}</button>
           <button onClick={onAuto}>オートアクセル：{auto ? 'ON' : 'OFF'}</button>
+          {is3D && <button onClick={onCam}>カメラ：{camLabel}</button>}
         </div>
-        {!isTouch && <p className="hint">Esc / P で再開 · M でミュート</p>}
+        {!isTouch && <p className="hint">Esc / P で再開 · M でミュート{is3D ? ' · C でカメラ切替' : ''}</p>}
       </div>
     </div>
   );

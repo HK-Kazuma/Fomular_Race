@@ -3,7 +3,7 @@ import { DIFFICULTY, fmtTime } from '../game/engine.js';
 import { ACHIEVEMENTS } from '../game/progress.js';
 import HeroCar from './HeroCar.jsx';
 
-export default function TitleScreen({ diff, setDiff, save, onStart, muted, onMute, isTouch }) {
+export default function TitleScreen({ diff, setDiff, save, onStart, muted, onMute, isTouch, mode, setMode, has3D }) {
   const [showAch, setShowAch] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const got = ACHIEVEMENTS.filter((a) => save.ach[a.id]).length;
@@ -25,6 +25,15 @@ export default function TitleScreen({ diff, setDiff, save, onStart, muted, onMut
           <div className="l1">GOLDEN HOUR</div>
           <div className="l2">GRAND PRIX</div>
           <div className="l3">黄昏のサーキット、最後尾10番手から。</div>
+        </div>
+
+        <div className="modes" role="radiogroup" aria-label="表示モード">
+          <button role="radio" aria-checked={mode === '3d'} className={mode === '3d' ? 'sel' : ''} disabled={!has3D} onClick={() => setMode('3d')}>
+            <b>3D</b><small>Three.js・TVカメラ演出</small>
+          </button>
+          <button role="radio" aria-checked={mode === '2d'} className={mode === '2d' ? 'sel' : ''} onClick={() => setMode('2d')}>
+            <b>CLASSIC</b><small>軽快な疑似3D</small>
+          </button>
         </div>
 
         <div className="diffs" role="radiogroup" aria-label="難易度">
@@ -54,7 +63,7 @@ export default function TitleScreen({ diff, setDiff, save, onStart, muted, onMut
       </div>
 
       <div className="title-right" aria-hidden>
-        <div className="panel p-hero"><HeroCar /></div>
+        {mode === '2d' && <div className="panel p-hero"><HeroCar /></div>}
         <div className="panel p-a"><div className="tag">No.7</div></div>
         <div className="panel p-b"><div className="tag">LAST TO FIRST</div></div>
       </div>
@@ -70,6 +79,7 @@ export default function TitleScreen({ diff, setDiff, save, onStart, muted, onMut
                 <tr><th>ブレーキ</th><td>↓ / S</td><td>BRAKE</td></tr>
                 <tr><th>ブースト</th><td>Space / Shift</td><td>BOOST</td></tr>
                 <tr><th>一時停止</th><td>Esc / P</td><td>Ⅱ ボタン</td></tr>
+                <tr><th>カメラ（3D）</th><td>C</td><td>カメラボタン</td></tr>
               </tbody>
             </table>
             <ul className="tips">

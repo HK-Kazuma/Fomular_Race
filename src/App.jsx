@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Engine } from './game/engine.js';
+import { webgl2 } from './game/webgl.js';
 import { loadSave, writeSave, evaluate } from './game/progress.js';
 import HUD from './components/HUD.jsx';
 import TouchControls from './components/TouchControls.jsx';
@@ -20,6 +21,7 @@ const useMedia = (q) => {
 
 export default function App() {
   const canvasRef = useRef(null);
+  const glRef = useRef(null);
   const engineRef = useRef(null);
   const screenRef = useRef('title');
   const [screen, setScreenState] = useState('title');
@@ -33,6 +35,12 @@ export default function App() {
   const [muted, setMuted] = useState(false);
   const [auto, setAuto] = useState(false);
   const [flash, setFlash] = useState(0);
+  const [mode, setModeState] = useState(() => {
+    const m = loadSave().mode;
+    return !webgl2() ? '2d' : m || '3d';
+  });
+  const [camLabel, setCamLabel] = useState('CHASE CAM');
+  const [loading, setLoading] = useState(false);
   const isTouch = useMedia('(pointer: coarse)');
   const portrait = useMedia('(orientation: portrait)');
 
@@ -48,7 +56,8 @@ export default function App() {
 
   useEffect(() => {
     const radioTimer = { t: null };
-    const e = new Engine(canvasRef.current, {
+    let e = null, ro = null, dead = false;
+    const cb = {
       onHud: setHud,
       onEvent: (ev) => {
         if (ev.type === 'radio') {
@@ -64,6 +73,8 @@ export default function App() {
           togglePause();
         } else if (ev.type === 'mute') {
           setMuted(ev.muted);
+        } else if (ev.type === 'cam') {
+          setCamLabel(ev.label);
         }
       },
       onFinish: (res) => {
@@ -74,20 +85,57 @@ export default function App() {
         });
         setScreen('result');
       },
-    });
-    engineRef.current = e;
-    if (import.meta.env.DEV) window.__gh = e;
-    setMuted(e.audio.muted);
-    setAuto(e.autoThrottle);
-    const ro = new ResizeObserver(() => e.resize());
-    ro.observe(canvasRef.current);
-    const vis = () => { if (document.hidden && screenRef.current === 'race' && !e.paused) togglePause(true); };
+    };
+    const vis = () => { if (document.hidden && screenRef.current === 'race' && e && !e.paused) togglePause(true); };
+    (async () => {
+      let E = Engine;
+      const opts = {};
+      if (mode === '3d') {
+        setLoading(true);
+        try {
+          const m = await import('./game3d/engine3d.js');
+          E = m.Engine3D;
+          opts.glCanvas = glRef.current;
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      if (dead) return;
+      try {
+        e = new E(canvasRef.current, cb, opts);
+      } catch (err) {
+        console.error(err);
+        e = new Engine(canvasRef.current, cb, {});
+      }
+      setLoading(false);
+      engineRef.current = e;
+      if (import.meta.env.DEV) window.__gh = e;
+      setMuted(e.audio.muted);
+      setAuto(e.autoThrottle);
+      setCamLabel(e.camLabel || '');
+      ro = new ResizeObserver(() => e.resize());
+      ro.observe(canvasRef.current);
+    })();
     document.addEventListener('visibilitychange', vis);
-    return () => { ro.disconnect(); document.removeEventListener('visibilitychange', vis); e.destroy(); };
-  }, [togglePause]);
+    return () => {
+      dead = true;
+      ro?.disconnect();
+      document.removeEventListener('visibilitychange', vis);
+      e?.destroy();
+      engineRef.current = null;
+    };
+  }, [togglePause, mode]);
+
+  const setMode = (m) => {
+    if (m === mode) return;
+    setSave((s) => { const n = { ...s, mode: m }; writeSave(n); return n; });
+    setModeState(m);
+  };
+  const cycleCam = () => engineRef.current?.cycleCam?.();
 
   const start = (d = diff) => {
     const e = engineRef.current;
+    if (!e) return;
     setDiff(d);
     setSave((s) => { const n = { ...s, diff: d }; writeSave(n); return n; });
     setResult(null);
@@ -100,6 +148,7 @@ export default function App() {
 
   const toTitle = () => {
     const e = engineRef.current;
+    if (!e) return;
     e.setPaused(false);
     setPaused(false);
     e.setupAttract();
@@ -121,18 +170,20 @@ export default function App() {
   useEffect(() => {
     engineRef.current?.setBottomInset(touchPad ? (portrait ? 98 : 80) : 0);
   }, [touchPad, portrait]);
-  const cls = ['app', isTouch ? 'is-touch' : 'is-desk', portrait ? 'is-portrait' : 'is-land', `scr-${screen}`, touchPad ? 'has-pad' : ''].join(' ');
+  const cls = ['app', `mode-${mode}`, isTouch ? 'is-touch' : 'is-desk', portrait ? 'is-portrait' : 'is-land', `scr-${screen}`, touchPad ? 'has-pad' : ''].join(' ');
 
   return (
     <div className={cls}>
       <div className="view">
+        {mode === '3d' && <canvas key="gl3d" ref={glRef} className="game-canvas gl" />}
         <canvas ref={canvasRef} className="game-canvas" />
+        {loading && <div className="loading">LOADING 3D CIRCUIT…</div>}
         {flash ? <div key={flash} className="flash" /> : null}
         {screen === 'race' && hud && (
-          <HUD hud={hud} radio={radio} pops={pops} engine={engineRef.current} onPause={() => togglePause(true)} isTouch={isTouch} portrait={portrait} />
+          <HUD hud={hud} radio={radio} pops={pops} engine={engineRef.current} onPause={() => togglePause(true)} isTouch={isTouch} portrait={portrait} is3D={mode === '3d'} onCam={cycleCam} camLabel={camLabel} />
         )}
         {screen === 'title' && (
-          <TitleScreen diff={diff} setDiff={setDiff} save={save} onStart={start} muted={muted} onMute={toggleMute} isTouch={isTouch} />
+          <TitleScreen diff={diff} setDiff={setDiff} save={save} onStart={start} muted={muted} onMute={toggleMute} isTouch={isTouch} mode={mode} setMode={setMode} has3D={webgl2()} />
         )}
         {screen === 'result' && result && <ResultScreen r={result} onRetry={() => start(result.diff)} onTitle={toTitle} />}
         {screen === 'race' && paused && (
@@ -145,6 +196,9 @@ export default function App() {
             auto={auto}
             onAuto={toggleAuto}
             isTouch={isTouch}
+            is3D={mode === '3d'}
+            onCam={cycleCam}
+            camLabel={camLabel}
           />
         )}
       </div>

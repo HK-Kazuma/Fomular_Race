@@ -17,7 +17,7 @@ const KEY = 'gh_save_v1';
 export function loadSave() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY) || '{}');
-    return { ach: s.ach || {}, best: s.best || {}, diff: s.diff || 'pro', races: s.races || 0 };
+    return { ach: s.ach || {}, best: s.best || {}, diff: s.diff || 'pro', races: s.races || 0, mode: s.mode };
   } catch {
     return { ach: {}, best: {}, diff: 'pro', races: 0 };
   }

@@ -17,9 +17,9 @@ const DECEL = -MAX_SPEED / 5;
 const OFF_DECEL = -MAX_SPEED / 1.8;
 const OFF_LIMIT = MAX_SPEED / 4;
 const CENTRIFUGAL = 0.3;
-const CAR_W = 0.34;
+export const CAR_W = 0.34;
 const KMH = 332;
-const LINE_Z = START_SEG * SEG;
+export const LINE_Z = START_SEG * SEG;
 
 export const DIFFICULTY = {
   rookie: { label: 'ROOKIE', top: 0.89, spread: 0.007, desc: '初めてならここから' },
@@ -27,7 +27,7 @@ export const DIFFICULTY = {
   legend: { label: 'LEGEND', top: 0.985, spread: 0.005, desc: '一瞬のミスも許されない' },
 };
 
-const PAL = [
+export const PAL = [
   { skyTop: [92, 128, 152], skyMid: [170, 188, 198], horizon: [244, 204, 140], haze: [226, 200, 158], sandA: [206, 172, 126], sandB: [197, 162, 116], run: [88, 95, 108], roadA: [66, 68, 75], roadB: [61, 63, 70] },
   { skyTop: [26, 36, 62], skyMid: [92, 84, 116], horizon: [230, 128, 72], haze: [150, 106, 98], sandA: [118, 96, 80], sandB: [110, 89, 74], run: [50, 55, 66], roadA: [42, 44, 51], roadB: [38, 40, 47] },
 ];
@@ -46,10 +46,12 @@ export function fmtTime(t) {
 }
 
 export class Engine {
-  constructor(canvas, cb = {}) {
+  constructor(canvas, cb = {}, opts = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.cb = cb;
+    this.opts = opts;
+    this.carLen = SEG * 0.95;   // 前後方向の車長（接触判定）
     this.miniCanvas = null;
     const T = buildTrack();
     this.segs = T.segments;
@@ -78,14 +80,18 @@ export class Engine {
     this.radioLast = {};
     this.hudTimer = 0;
     this._bindKeys();
+    this.initRenderer();
     this.resize();
     this.setupAttract();
     this._last = performance.now();
     this._raf = requestAnimationFrame(this._frame);
   }
 
+  initRenderer() {}
+
   destroy() {
     cancelAnimationFrame(this._raf);
+    clearTimeout(this._finTimer);
     window.removeEventListener('keydown', this._kd);
     window.removeEventListener('keyup', this._ku);
   }
@@ -293,7 +299,7 @@ export class Engine {
     }
     const gapSec = ahead ? aheadDz / Math.max(p.speed, MAX_SPEED * 0.55) : 99;
     this.gapAhead = gapSec;
-    this.tow = !!ahead && aheadDz > SEG * 1.5 && aheadDz < SEG * 16 && Math.abs(ahead.x - p.x) < 0.42 && sp > 0.5;
+    this.tow = !!ahead && aheadDz > this.carLen * 1.4 && aheadDz < this.carLen + SEG * 15 && Math.abs(ahead.x - p.x) < 0.42 && sp > 0.5;
     const wasAvail = this.drsAvail;
     this.drsAvail = pSeg.drs && gapSec < 1.0 && this.state === 'racing';
     this.drsOpen = this.drsAvail && !inp.down;
@@ -379,11 +385,11 @@ export class Engine {
       for (const o of this.all) {
         if (o === r) continue;
         const dz = this.wrapDiff(o.dist - r.dist);
-        if (dz > 0 && dz < SEG * 8 && Math.abs(o.x - r.x) < CAR_W * 1.2 && o.speed < target * 1.02) {
+        if (dz > 0 && dz < this.carLen + SEG * 7 && Math.abs(o.x - r.x) < CAR_W * 1.2 && o.speed < target * 1.02) {
           const side = o.x > r.x ? -1 : 1;
           tx = clamp(o.x + side * CAR_W * 1.55, -0.85, 0.85);
           if (Math.abs(tx - o.x) < CAR_W) tx = o.x - side * CAR_W * 1.55;
-          if (dz < SEG * 2.4) target = Math.min(target, o.speed * 0.985);
+          if (dz < this.carLen + SEG * 1.5) target = Math.min(target, o.speed * 0.985);
         }
       }
       r.x += clamp(tx - r.x, -0.85 * dt, 0.85 * dt);
@@ -397,10 +403,10 @@ export class Engine {
     this.contactCd -= dt;
     for (const r of this.rivals) {
       const dz = this.wrapDiff(r.dist - p.dist);
-      if (Math.abs(dz) < SEG * 0.95 && Math.abs(r.x - p.x) < CAR_W * 0.92) {
+      if (Math.abs(dz) < this.carLen && Math.abs(r.x - p.x) < CAR_W * 0.92) {
         if (dz > 0) {
-          if (p.speed > r.speed) { p.speed = r.speed * 0.84; p.dist = r.dist - SEG * 0.95; }
-        } else if (r.speed > p.speed) { r.speed = p.speed * 0.9; r.dist = p.dist - SEG * 0.95; }
+          if (p.speed > r.speed) { p.speed = r.speed * 0.84; p.dist = r.dist - this.carLen; }
+        } else if (r.speed > p.speed) { r.speed = p.speed * 0.9; r.dist = p.dist - this.carLen; }
         const push = p.x < r.x ? -1 : 1;
         p.x += push * 0.07;
         r.x -= push * 0.05;
@@ -456,7 +462,7 @@ export class Engine {
     let tx = clamp(far.curve * 0.1, -0.5, 0.5);
     for (const r of this.rivals) {
       const dz = this.wrapDiff(r.dist - p.dist);
-      if (dz > 0 && dz < SEG * 9 && Math.abs(r.x - tx) < CAR_W * 1.3) tx = r.x > 0 ? r.x - CAR_W * 1.6 : r.x + CAR_W * 1.6;
+      if (dz > 0 && dz < this.carLen + SEG * 8 && Math.abs(r.x - tx) < CAR_W * 1.3) tx = r.x > 0 ? r.x - CAR_W * 1.6 : r.x + CAR_W * 1.6;
     }
     tx = clamp(tx, -0.85, 0.85);
     const sp = p.speed / MAX_SPEED;

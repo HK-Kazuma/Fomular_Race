@@ -27,7 +27,7 @@ function ShiftLights({ rpm }) {
   );
 }
 
-export default function HUD({ hud, radio, pops, engine, onPause, isTouch, portrait }) {
+export default function HUD({ hud, radio, pops, engine, onPause, isTouch, portrait, is3D, onCam, camLabel }) {
   const mini = useRef(null);
   useEffect(() => {
     engine?.setMinimap(mini.current);
@@ -67,9 +67,17 @@ export default function HUD({ hud, radio, pops, engine, onPause, isTouch, portra
 
       {/* 右上：タイム＋ミニマップ */}
       <div className="timing">
-        <button className="pause-btn" onClick={onPause} aria-label="一時停止">
-          <span /><span />
-        </button>
+        <div className="hud-btns">
+          {is3D && (
+            <button className="cam-btn" onClick={onCam} aria-label="カメラ切替">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden><path d="M4 7h3l2-2h6l2 2h3v12H4z" fill="none" stroke="currentColor" strokeWidth="2" /><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" strokeWidth="2" /></svg>
+              {!isTouch && <span>{camLabel}</span>}
+            </button>
+          )}
+          <button className="pause-btn" onClick={onPause} aria-label="一時停止">
+            <span /><span />
+          </button>
+        </div>
         <div className="times">
           <div className="t-main">{fmtTime(hud.curLap)}</div>
           <div className="t-row"><span>BEST</span>{fmtTime(hud.best)}</div>

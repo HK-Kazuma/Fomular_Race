@@ -410,3 +410,40 @@ button { font-family: var(--f); cursor: pointer; color: inherit; -webkit-tap-hig
   .stats b { font-size: 20px; }
   .classif li { font-size: 14px; padding: 2px 8px; }
 }
+
+/* ───────────── 3D MODE ───────────── */
+.game-canvas.gl { z-index: 0; }
+.game-canvas:not(.gl) { z-index: 1; }
+.hud, .title, .result, .modal { z-index: 3; }
+.loading {
+  position: absolute; inset: 0; display: grid; place-items: center; z-index: 6; background: var(--ink);
+  font-size: 28px; font-weight: 900; font-style: italic; letter-spacing: 0.1em; color: var(--gold2);
+}
+.hud-btns { display: flex; gap: 8px; }
+.cam-btn {
+  pointer-events: auto; height: 42px; min-width: 42px; padding: 0 12px; border: 1px solid rgba(236, 230, 214, 0.4); background: rgba(8, 10, 14, 0.6);
+  display: flex; align-items: center; justify-content: center; gap: 8px; transform: skewX(-10deg); font-size: 15px; font-weight: 800; color: var(--paper);
+}
+.is-portrait .cam-btn { height: 36px; min-width: 36px; }
+.pop.cam { font-size: 26px; color: var(--gold2); padding: 2px 20px; }
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.modes button {
+  border: 1px solid rgba(236, 230, 214, 0.25); background: rgba(20, 27, 36, 0.75); padding: 8px 14px; text-align: left;
+  display: flex; align-items: baseline; gap: 10px; transform: skewX(-12deg); transition: background 0.15s, border-color 0.15s;
+}
+.modes button b { font-size: 24px; font-weight: 900; font-style: italic; }
+.modes button small { font-size: 13px; font-weight: 600; opacity: 0.75; }
+.modes button.sel { border-color: var(--gold); background: rgba(212, 173, 85, 0.22); }
+.modes button.sel b { color: var(--gold2); }
+.modes button:disabled { opacity: 0.35; cursor: not-allowed; }
+.mode-3d .title::before { background: linear-gradient(100deg, rgba(8, 12, 18, 0.92) 0%, rgba(8, 12, 18, 0.7) 36%, rgba(8, 12, 18, 0) 58%); }
+.mode-3d .p-a, .mode-3d .p-b { opacity: 0.85; }
+@media (orientation: portrait), (max-width: 760px) {
+  .modes button small { display: none; }
+  .mode-3d .title-right { height: 30vh; }
+  .mode-3d .title::before { background: linear-gradient(180deg, rgba(8, 12, 18, 0) 0%, rgba(8, 12, 18, 0.2) 25%, rgba(8, 12, 18, 0.92) 45%); }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .modes button { padding: 4px 12px; }
+  .modes button b { font-size: 19px; }
+}
